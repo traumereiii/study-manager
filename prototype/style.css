@@ -129,3 +129,54 @@
 
 /* 문제집 목록 탭 */
 .book-tabs{display:flex;gap:8px;margin:32px 0 20px;border-bottom:1px solid var(--line)}.book-tabs a{padding:12px 18px;font-size:14px;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;min-height:44px}.book-tabs a[aria-selected=true]{color:var(--green);border-bottom-color:var(--green);font-weight:700}.book-tabs a:focus-visible{outline:3px solid #86a87c;outline-offset:2px}.book-tabs a span{margin-left:4px;font-size:12px}
+
+/* 문제집 유형 */
+.category-picker{border:0;padding:0;margin:28px 0}
+.category-options{display:flex;flex-wrap:wrap;gap:10px}
+.category-option{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;min-height:44px;border:1px solid #b9c6b0;border-radius:9px;cursor:pointer;font-size:14px;background:#fff}
+.category-option:has(input:checked){border:2px solid var(--green);background:var(--soft);padding:11px 17px;font-weight:700;color:#28583c}
+.create-form .category-option input[type=radio]{width:16px;height:16px;accent-color:var(--green)}
+.category-tag{display:inline-block;font-size:12px;font-weight:700;color:#2c5035;background:#e5eedc;border:1px solid #bdcdb4;border-radius:999px;padding:3px 10px;margin:6px 0}
+
+/* 문제 만들기·수정 화면 가시성: 대비, 글자 크기, 간격, 구역 구분을 높입니다. */
+.create-form{padding:36px;max-width:860px}
+.create-form .form-book{font-size:14px;color:#3f5246;padding-bottom:20px;margin-bottom:32px;border-bottom:2px solid var(--line)}
+.create-form .form-field,.create-form .type-field,.create-form .choice-fields{margin:0 0 32px}
+.create-form legend,.create-form .form-field>label,.create-form .choice-fields legend{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:14px;display:block}
+.create-form legend>span,.create-form .form-field label>span{font-size:12px;font-weight:700;color:#fff;background:#4f7a5c;border-radius:4px;padding:2px 7px;margin-left:8px;vertical-align:middle}
+.create-form .form-field label>.optional,.create-form legend>.optional{background:#e9ede4;color:#4b5a4f}
+.create-form .type-options{gap:14px}
+.create-form .type-option{padding:18px 16px;border:1px solid #b9c6b0;background:#fff}
+.create-form .type-option strong{font-size:15px;color:var(--ink)}
+.create-form .type-option small{font-size:13px;color:#52624f;padding-left:25px}
+.create-form .type-option:has(input:checked){border:2px solid var(--green);background:var(--soft);padding:17px 15px}
+.create-form .type-option input{width:18px;height:18px}
+.create-form textarea,.create-form input[type=text],.create-form input:not([type=radio]):not([type=checkbox]):not([type=file]){border:1px solid #9fb094;background:#fff;font-size:15px;line-height:1.8;padding:14px 16px}
+.create-form textarea[data-markdown]{min-height:140px}
+.create-form textarea:focus,.create-form input:focus{outline:3px solid #86a87c;outline-offset:1px;border-color:var(--green)}
+.create-form .field-help,.create-form .editor-help,.create-form .editor-status{font-size:13px;color:#4b5a4f}
+.create-form .editor-toolbar{background:#e9efe2;border-color:#9fb094;padding:10px}
+.create-form .editor-toolbar button,.create-form .image-upload{font-size:13px;font-weight:600;border-color:#9fb094;color:#2c5035}
+.create-form .editor-preview{border-color:#b9c6b0;background:#fbfcf8}
+.create-form .editor-preview summary{font-size:13px;font-weight:600;color:#2c5035}
+.create-form .choice-editor{border:1px solid #b9c6b0;background:#fbfcf8;padding:20px;margin:0 0 20px}
+.create-form .choice-editor-heading{font-size:15px;font-weight:700}
+.create-form .form-actions{margin-top:36px;padding-top:24px;border-top:2px solid var(--line)}
+.create-form .form-actions .primary,.create-form .form-actions .secondary{min-height:48px;font-size:15px;padding:12px 24px}
+.create-form .save-notice{font-size:14px;font-weight:600;margin:0 0 24px}
+@media(max-width:540px){.create-form{padding:22px 16px}.create-form .type-options{grid-template-columns:1fr}}
+
+/* 삭제된 문제집 */
+.deleted-card{cursor:default;opacity:.92}.deleted-card:hover{transform:none;box-shadow:none}.deleted-card .management-actions{margin-top:16px}.book-tabs a{white-space:nowrap}
+
+/* 오른쪽 아래 토스트 알림 */
+.toast-region{position:fixed;right:24px;bottom:24px;z-index:40;display:flex;flex-direction:column;gap:10px;width:min(380px,calc(100% - 32px));pointer-events:none}
+body:has(.alarm-banner) .toast-region{bottom:170px}
+.toast{pointer-events:auto;display:flex;align-items:flex-start;gap:12px;background:#26382f;color:#fff;border-radius:10px;padding:14px 16px;font-size:14px;line-height:1.6;box-shadow:0 10px 30px #26382f40;border-left:5px solid #8ec07c;animation:toast-in .22s ease-out}
+.toast-error{border-left-color:#e08a76}
+.toast span{flex:1;overflow-wrap:anywhere}
+.toast button{background:transparent;color:#d6e2d0;font-size:20px;line-height:1;min-width:32px;min-height:32px;cursor:pointer}
+.toast button:focus-visible{outline:3px solid #b8d6a8;outline-offset:2px}
+@keyframes toast-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.toast{animation:none}}
+@media(max-width:540px){.toast-region{right:16px;bottom:16px}}

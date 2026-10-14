@@ -6,6 +6,13 @@ const bookIcons = [
 const allowedImageData = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/;
 const maxCardImageBytes = 2 * 1024 * 1024;
 
+const bookCategories = ['단어', '용어', '개념'];
+
+function categoryPicker(current = '') {
+  const options = [['', '선택 안 함'], ...bookCategories.map(value => [value, value])];
+  return `<fieldset class="category-picker"><legend>문제집 유형 <span class="optional">선택</span></legend><div class="category-options">${options.map(([value, label]) => `<label class="category-option"><input type="radio" name="category" value="${value}" ${current === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><p class="field-help">정하지 않아도 문제집을 만들 수 있어요.</p></fieldset>`;
+}
+
 function iconPicker(current) {
   return `<fieldset class="icon-picker"><legend>문제집 아이콘</legend><div class="icon-options">${bookIcons.map(([icon, label]) => `<label class="icon-option"><input type="radio" name="icon" value="${icon}" ${current === icon ? 'checked' : ''}><span aria-hidden="true">${icon}</span><small>${label}</small></label>`).join('')}</div></fieldset>`;
 }

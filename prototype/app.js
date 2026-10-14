@@ -51,6 +51,8 @@ for (const book of books) {
     if (Number.isInteger(level) && level >= 1 && level <= 5) card.level = level;
   });
   book.archived = data.archived === true;
+  book.deleted = data.deleted === true;
+  book.category = bookCategories.includes(data.category) ? data.category : '';
   book.lastStudy = typeof data.lastStudy === 'string' ? data.lastStudy : null;
   book.completed = typeof data.completed === 'string' ? data.completed : null;
 }
@@ -62,34 +64,38 @@ let session = null;
 let savedBookId = null;
 let storageAvailable = true;
 const todayKey = () => new Date().toLocaleDateString('sv-SE');
-const due = book => book.archived || book.completed === todayKey() ? 0 : book.cards.length;
-const activeBooks = () => books.filter(book => !book.archived);
+const due = book => book.archived || book.deleted || book.completed === todayKey() ? 0 : book.cards.length;
+const activeBooks = () => books.filter(book => !book.archived && !book.deleted);
 const average = book => (book.cards.reduce((sum, card) => sum + card.level, 0) / (book.cards.length || 1)).toFixed(1);
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const bookIcon = book => `<span class="book-icon" style="--book-bg:${book.color};--book-ink:${book.ink}">${book.icon}</span>`;
 function persist() {
-  const data = Object.fromEntries(books.map(book => [book.id, { name: book.name, desc: book.desc, icon: book.icon, cards: book.cards, lastStudy: book.lastStudy, completed: book.completed, archived: book.archived === true }]));
+  const data = Object.fromEntries(books.map(book => [book.id, { name: book.name, desc: book.desc, icon: book.icon, cards: book.cards, lastStudy: book.lastStudy, completed: book.completed, archived: book.archived === true, deleted: book.deleted === true, category: book.category || '' }]));
   data._meta = featureData();
   try { localStorage.setItem(storageKey, JSON.stringify(data)); storageAvailable = true; return true; }
   catch { storageAvailable = false; return false; }
 }
 function renderList() {
   const totalDue = books.reduce((sum, book) => sum + due(book), 0);
-  const archivedBooks = books.filter(book => book.archived);
-  const showArchived = new URLSearchParams(location.hash.split('?')[1] || '').get('tab') === 'archived';
-  const visibleBooks = showArchived ? archivedBooks : activeBooks();
-  const bookCard = book => `<a class="book-card" href="#book/${book.id}" aria-label="${escapeHtml(book.name)} 상세 보기"><div class="book-top">${bookIcon(book)}<span class="pill">${book.archived ? '보관됨' : !book.cards.length ? '첫 문제를 추가해요' : due(book) ? '학습을 기다려요' : '오늘 학습 완료'}</span></div><h3>${escapeHtml(book.name)}</h3><p class="book-desc">${escapeHtml(book.desc)}</p><div class="book-metrics"><div class="metric"><small>전체 카드</small><strong>${book.cards.length}<span>장</span></strong></div><div class="metric accent"><small>오늘 학습</small><strong>${due(book)}<span>장</span></strong></div></div><div class="level-line"><span>평균 암기 레벨</span><strong>Lv. ${average(book)} <span>/ 5</span></strong></div><div class="track"><div style="width:${Number(average(book)) * 20}%"></div></div><div class="card-bottom"><span>최근 학습 <span>${book.lastStudy ? escapeHtml(book.lastStudy.slice(5).replace('-', '/')) : '아직 학습 전'}</span></span><span class="arrow" aria-hidden="true">↗</span></div></a>`;
+  const archivedBooks = books.filter(book => book.archived && !book.deleted);
+  const deletedBooks = books.filter(book => book.deleted);
+  const tab = new URLSearchParams(location.hash.split('?')[1] || '').get('tab');
+  const showArchived = tab === 'archived';
+  const showDeleted = tab === 'deleted';
+  const visibleBooks = showDeleted ? deletedBooks : showArchived ? archivedBooks : activeBooks();
+  const deletedCard = book => `<article class="book-card deleted-card"><div class="book-top">${bookIcon(book)}<span class="pill">삭제됨</span></div><h3>${escapeHtml(book.name)}</h3><p class="book-desc">${escapeHtml(book.desc)}</p><p class="field-help">카드 ${book.cards.length}장 · 완전 삭제하면 복구할 수 없어요.</p><div class="management-actions"><button class="secondary" data-action="restore-book" data-book="${book.id}">복원</button><button class="secondary danger-action" data-action="purge-book" data-book="${book.id}">완전 삭제</button></div></article>`;
+  const bookCard = book => `<a class="book-card" href="#book/${book.id}" aria-label="${escapeHtml(book.name)} 상세 보기"><div class="book-top">${bookIcon(book)}<span class="pill">${book.archived ? '보관됨' : !book.cards.length ? '첫 문제를 추가해요' : due(book) ? '학습을 기다려요' : '오늘 학습 완료'}</span></div><h3>${escapeHtml(book.name)}</h3>${book.category ? `<span class="category-tag">${book.category}</span>` : ''}<p class="book-desc">${escapeHtml(book.desc)}</p><div class="book-metrics"><div class="metric"><small>전체 카드</small><strong>${book.cards.length}<span>장</span></strong></div><div class="metric accent"><small>오늘 학습</small><strong>${due(book)}<span>장</span></strong></div></div><div class="level-line"><span>평균 암기 레벨</span><strong>Lv. ${average(book)} <span>/ 5</span></strong></div><div class="track"><div style="width:${Number(average(book)) * 20}%"></div></div><div class="card-bottom"><span>최근 학습 <span>${book.lastStudy ? escapeHtml(book.lastStudy.slice(5).replace('-', '/')) : '아직 학습 전'}</span></span><span class="arrow" aria-hidden="true">↗</span></div></a>`;
   app.innerHTML = `<div class="eyebrow">YOUR LEARNING SPACE</div><div class="heading-row"><h1>나의 문제집</h1></div><p class="subtitle">배운 것을 오래 기억하는 가장 좋은 습관, 오늘도 한 장씩 시작해 보세요.</p>
     <section class="hero"><div><div class="hero-tag">A LITTLE EVERY DAY</div><h2>${totalDue ? `오늘, ${totalDue}장의 지식을<br>내 것으로 만들어 볼까요?` : '오늘의 학습을 모두 마쳤어요.<br>꾸준함이 실력이 되고 있어요.'}</h2><p>완벽하지 않아도 괜찮아요. 조금씩 쌓아가면 되니까요.</p></div><div class="hero-art" aria-hidden="true"><div class="art-card one"></div><div class="art-card two"></div><div class="art-card three"><span>✓</span><i></i><i></i></div><span class="spark">✧</span></div></section>
-    <div class="book-tabs" role="tablist" aria-label="문제집 보관 상태"><a role="tab" href="#books" aria-selected="${!showArchived}">학습 중 <span>${activeBooks().length}</span></a><a role="tab" href="#books?tab=archived" aria-selected="${showArchived}">보관함 <span>${archivedBooks.length}</span></a></div>
-    <div class="book-grid">${visibleBooks.map(bookCard).join('')}${!visibleBooks.length ? `<p class="empty-note">${showArchived ? '보관한 문제집이 없어요. 문제집 상세 화면에서 보관할 수 있어요.' : '학습 중인 문제집이 없어요. 새 문제집을 만들거나 보관함에서 복원해 보세요.'}</p>` : ''}</div>
+    <div class="book-tabs" role="tablist" aria-label="문제집 보관 상태"><a role="tab" href="#books" aria-selected="${!showArchived && !showDeleted}">학습 중 <span>${activeBooks().length}</span></a><a role="tab" href="#books?tab=archived" aria-selected="${showArchived}">보관함 <span>${archivedBooks.length}</span></a><a role="tab" href="#books?tab=deleted" aria-selected="${showDeleted}">삭제된 문제집 <span>${deletedBooks.length}</span></a></div>
+    <div class="book-grid">${visibleBooks.map(showDeleted ? deletedCard : bookCard).join('')}${!visibleBooks.length ? `<p class="empty-note">${showDeleted ? '삭제된 문제집이 없어요.' : showArchived ? '보관한 문제집이 없어요. 문제집 상세 화면에서 보관할 수 있어요.' : '학습 중인 문제집이 없어요. 새 문제집을 만들거나 보관함에서 복원해 보세요.'}</p>` : ''}</div>
     <p class="tip"><span aria-hidden="true">☼</span><span>암기 레벨이 높을수록 더 잘 기억하고 있는 카드예요. 문제집을 선택해 나의 학습 현황을 확인해 보세요.</span></p>`;
 }
 function renderDetail(book) {
   const counts = [1, 2, 3, 4, 5].map(level => book.cards.filter(card => card.level === level).length);
   const colors = ['#dbe4d3', '#bfd0af', '#9fb98b', '#799c65', '#47754c'];
   app.innerHTML = `<a class="back" href="#books">← 나의 문제집</a><div class="eyebrow">BOOK OVERVIEW</div>
-    <div class="heading-row"><div class="title-with-icon">${bookIcon(book)}<h1>${escapeHtml(book.name)}</h1></div></div><p class="subtitle">${escapeHtml(book.desc)}</p>
+    <div class="heading-row"><div class="title-with-icon">${bookIcon(book)}<h1>${escapeHtml(book.name)}</h1></div></div><p class="subtitle">${book.category ? `<span class="category-tag">${book.category}</span> ` : ''}${escapeHtml(book.desc)}</p>
     <div class="detail-grid"><section class="panel"><h2>암기 현황</h2><p class="panel-caption">레벨을 선택하면 해당 문제를 모아 볼 수 있어요.</p>
       <div class="total">${book.cards.length}<span> 장의 카드</span></div>
       ${counts.map((count, index) => `<a class="level-row level-link" href="#manage/${book.id}?level=${index + 1}" aria-label="Level ${index + 1} 문제 ${count}장 보기"><span>Level ${index + 1}</span><div class="track"><div style="width:${count / (book.cards.length || 1) * 100}%;--bar:${colors[index]}"></div></div><strong>${count}장 <span aria-hidden="true">→</span></strong></a>`).join('')}
@@ -117,8 +123,7 @@ function renderStudy() {
     <div class="study-actions">${revealed ? '<button class="secondary" data-action="unknown">↻ &nbsp; 몰라요</button><button class="primary" data-action="known">✓ &nbsp; 알아요</button>' : '<button class="primary" data-action="reveal">정답 확인 <span>↓</span></button>'}</div>
     <p class="study-caption">${revealed ? '평가하면 다음 카드로 이동해요.' : '맞혔는지보다, 스스로 기억하고 있는지가 중요해요.'}</p></div>`;
   updateStudyTools();
-  app.querySelector('.question-panel').insertAdjacentHTML('beforeend', `<div class="management-actions study-management"><a class="secondary" href="#edit/${book.id}/${card.id}/study">문제 수정</a><button class="secondary level-reset" data-action="reset-card" data-book="${book.id}" data-card="${card.id}" ${card.level === 1 ? 'disabled' : ''}>↺ 암기 레벨 초기화</button><button class="secondary" data-action="card-stats" data-book="${book.id}" data-card="${card.id}">카드 통계</button></div><p class="field-help">초기화하면 이 문제만 Level 1로 돌아갑니다.</p><p id="management-status" class="management-status" role="status">${escapeHtml(managementNotice)}</p><p id="management-error" class="form-error" role="alert"></p>`);
-  managementNotice = '';
+  app.querySelector('.question-panel').insertAdjacentHTML('beforeend', `<div class="management-actions study-management"><a class="secondary" href="#edit/${book.id}/${card.id}/study">문제 수정</a><button class="secondary level-reset" data-action="reset-card" data-book="${book.id}" data-card="${card.id}" ${card.level === 1 ? 'disabled' : ''}>↺ 암기 레벨 초기화</button><button class="secondary" data-action="card-stats" data-book="${book.id}" data-card="${card.id}">카드 통계</button></div><p class="field-help">초기화하면 이 문제만 Level 1로 돌아갑니다.</p><p id="management-status" class="management-status" role="status"></p><p id="management-error" class="form-error" role="alert"></p>`);
 }
 function render() {
   const [page, id, cardId, source] = location.hash.slice(1).split('?')[0].split('/');
@@ -139,7 +144,7 @@ function render() {
   else if ((page === 'book' || page === 'study') && book) renderDetail(book);
   else { renderList(); app.querySelector('.heading-row').insertAdjacentHTML('beforeend', '<a class="primary" href="#new-book">＋ 문제집 만들기</a>'); }
   if ((page === 'book' || (page === 'study' && !session)) && book) {
-    app.querySelector('.heading-row').insertAdjacentHTML('beforeend', `<div class="management-actions"><a class="secondary" href="#edit-book/${book.id}">문제집 수정</a><a class="secondary" href="#manage/${book.id}">문제 관리</a><a class="secondary" href="#create/${book.id}">＋ 문제 만들기</a><button class="secondary" data-action="${book.archived ? 'unarchive-book' : 'archive-book'}" data-book="${book.id}">${book.archived ? '보관 해제' : '보관하기'}</button></div>`);
+    app.querySelector('.heading-row').insertAdjacentHTML('beforeend', `<div class="management-actions"><a class="secondary" href="#edit-book/${book.id}">문제집 수정</a><a class="secondary" href="#manage/${book.id}">문제 관리</a><a class="secondary" href="#create/${book.id}">＋ 문제 만들기</a><button class="secondary" data-action="${book.archived ? 'unarchive-book' : 'archive-book'}" data-book="${book.id}">${book.archived ? '보관 해제' : '보관하기'}</button><button class="secondary danger-action" data-action="delete-book" data-book="${book.id}">삭제</button></div>`);
   }
   if (book && !book.cards.length && ['book', 'study'].includes(page)) {
     app.querySelector('.study-plan').innerHTML = `<span class="seed" aria-hidden="true">✳</span><h2>첫 문제를 만들어 보세요</h2><p class="panel-caption">아직 카드가 없는 문제집이에요.<br>기억하고 싶은 질문과 정답을 추가해 보세요.</p><a class="primary" href="#create/${book.id}">＋ 첫 문제 만들기</a>`;
@@ -151,11 +156,11 @@ function render() {
     if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
   });
   if (page === 'book' && book?.id === savedBookId) {
-    app.insertAdjacentHTML('afterbegin', '<p class="save-notice" role="status">✓ 새 문제가 Level 1로 저장되었습니다. 학습하기에서 확인해 보세요.</p>');
+    showToast('새 문제가 Level 1로 저장되었습니다. 학습하기에서 확인해 보세요.');
     savedBookId = null;
   }
-  if (((page === 'book' && book) || page === 'books') && managementNotice) {
-    app.insertAdjacentHTML('afterbegin', `<p class="save-notice" role="status">${escapeHtml(managementNotice)}</p>`);
+  if (managementNotice) {
+    showToast(managementNotice);
     managementNotice = '';
   }
   document.querySelector('#breadcrumb').innerHTML = `워크스페이스 <span>/</span> <a href="#books">나의 문제집</a>${book ? ` <span>/</span> ${escapeHtml(book.name)}` : ['settings', 'stats', 'new-book'].includes(page) ? ` <span>/</span> ${{settings: '설정', stats: '학습 통계', 'new-book': '문제집 만들기'}[page]}` : ''}`;
@@ -254,7 +259,7 @@ app.addEventListener('submit', event => {
     session = null;
     const count = book.cards.length;
     renderCreate(book);
-    document.querySelector('#form-error').insertAdjacentHTML('beforebegin', `<p class="save-notice" role="status">✓ ${count}번째 문제를 Level 1로 저장했습니다. 이어서 다음 문제를 만들어 보세요.</p>`);
+    showToast(`${count}번째 문제를 Level 1로 저장했습니다. 이어서 다음 문제를 만들어 보세요.`);
     document.querySelector('#question').focus();
     window.scrollTo({ top: 0 });
   } catch (failure) {

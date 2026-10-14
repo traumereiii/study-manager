@@ -3,6 +3,7 @@ const defaultSettings = { shortcuts: true, reveal: 'Space', unknown: '1', known:
 let settings = { ...defaultSettings };
 let studyHistory = [];
 let alarmLastDate = '';
+let purgedBookIds = [];
 let questionDeadline = null;
 let timerToken = '';
 const keyOptions = ['Space', 'Enter', '1', '2', '3', 'a', 's', 'd', 'j', 'k', 'l'];
@@ -17,6 +18,11 @@ function loadFeatures(data) {
   }
   studyHistory = Array.isArray(meta.history) ? meta.history.filter(item => item && typeof item.bookId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && typeof item.known === 'boolean') : [];
   alarmLastDate = typeof meta.alarmLastDate === 'string' ? meta.alarmLastDate : '';
+  purgedBookIds = Array.isArray(meta.purged) ? meta.purged.filter(id => typeof id === 'string') : [];
+  for (const id of purgedBookIds) {
+    const index = books.findIndex(book => book.id === id);
+    if (index >= 0) books.splice(index, 1);
+  }
   if (Array.isArray(meta.books)) {
     for (const item of meta.books) {
       if (!item || typeof item.id !== 'string' || !/^custom-[\w-]+$/.test(item.id) || books.some(book => book.id === item.id) || typeof item.name !== 'string' || !item.name.trim()) continue;
@@ -25,10 +31,10 @@ function loadFeatures(data) {
   }
 }
 function featureData() {
-  return { settings, history: studyHistory, alarmLastDate, books: books.filter(book => book.custom).map(({ id, name, desc }) => ({ id, name, desc })) };
+  return { settings, history: studyHistory, alarmLastDate, purged: purgedBookIds, books: books.filter(book => book.custom).map(({ id, name, desc }) => ({ id, name, desc })) };
 }
 function renderNewBook() {
-  app.innerHTML = `<div class="create-shell"><a href="#books" class="back">← 나의 문제집</a><div class="eyebrow">A NEW CHAPTER</div><h1>문제집 만들기</h1><p class="subtitle">배우고 싶은 주제를 담을 새로운 공간을 만들어 보세요.</p><form id="book-form" class="panel create-form"><div class="form-field"><label for="book-name">문제집 이름 <span>필수</span></label><input id="book-name" name="name" maxlength="60" required placeholder="예: 정보처리기사 필기"></div><div class="form-field"><label for="book-desc">한 줄 소개 <span class="optional">선택</span></label><textarea id="book-desc" name="description" maxlength="160" rows="3" placeholder="이 문제집에서 어떤 내용을 공부할까요?"></textarea></div>${iconPicker('▤')}<p class="field-help">빈 문제집을 만든 뒤, 원하는 문제를 직접 추가할 수 있어요.</p><p id="feature-error" class="form-error" role="alert"></p><div class="form-actions"><a class="secondary" href="#books">취소</a><button class="primary" type="submit">문제집 만들기 ＋</button></div></form></div>`;
+  app.innerHTML = `<div class="create-shell"><a href="#books" class="back">← 나의 문제집</a><div class="eyebrow">A NEW CHAPTER</div><h1>문제집 만들기</h1><p class="subtitle">배우고 싶은 주제를 담을 새로운 공간을 만들어 보세요.</p><form id="book-form" class="panel create-form"><div class="form-field"><label for="book-name">문제집 이름 <span>필수</span></label><input id="book-name" name="name" maxlength="60" required placeholder="예: 정보처리기사 필기"></div><div class="form-field"><label for="book-desc">한 줄 소개 <span class="optional">선택</span></label><textarea id="book-desc" name="description" maxlength="160" rows="3" placeholder="이 문제집에서 어떤 내용을 공부할까요?"></textarea></div>${categoryPicker('')}${iconPicker('▤')}<p class="field-help">빈 문제집을 만든 뒤, 원하는 문제를 직접 추가할 수 있어요.</p><p id="feature-error" class="form-error" role="alert"></p><div class="form-actions"><a class="secondary" href="#books">취소</a><button class="primary" type="submit">문제집 만들기 ＋</button></div></form></div>`;
 }
 function renderSettings() {
   app.innerHTML = `<div class="create-shell"><div class="eyebrow">MAKE IT YOURS</div><h1>설정</h1><p class="subtitle">내 학습 습관에 맞춰 편안하게 조정해 보세요.</p><form id="settings-form" class="settings-form">
@@ -52,7 +58,7 @@ function renderStats() {
   app.innerHTML = `<div class="eyebrow">YOUR STEADY PROGRESS</div><h1>학습 통계</h1><p class="subtitle">한 장씩 쌓아 온 학습을 돌아보세요. 반복 평가도 학습 횟수에 포함됩니다.</p>
     <div class="stats-summary">${[['오늘 학습', stats.days[6].count, '회'], ['누적 학습', stats.total, '회'], ['알아요 비율', stats.total ? Math.round(stats.known / stats.total * 100) : 0, '%'], ['학습한 날', stats.activeDays, '일']].map(([label, value, unit]) => `<section class="panel"><p class="panel-caption">${label}</p><div class="total">${value}<span> ${unit}</span></div></section>`).join('')}</div>
     <section class="panel"><div class="section-title chart-heading"><h2>최근 7일 학습</h2><span>평가 횟수 기준</span></div><div class="weekly-chart">${stats.days.map(day => `<div class="chart-column"><strong>${day.count}</strong><div class="chart-track"><div class="chart-bar" style="height:${day.count / max * 100}%"></div></div><span>${day.label}</span></div>`).join('')}</div>${!stats.total ? '<p class="empty-note">아직 학습 기록이 없어요. 문제를 풀고 알아요 / 몰라요를 선택하면 통계가 쌓입니다.</p>' : ''}</section>
-    <section class="panel book-stats"><h2>문제집별 학습 현황</h2><div class="table-scroll"><table><thead><tr><th scope="col">문제집</th><th scope="col">카드</th><th scope="col">평가 횟수</th><th scope="col">알아요 비율</th><th scope="col">평균 레벨</th></tr></thead><tbody>${books.map(book => { const entries = studyHistory.filter(item => item.bookId === book.id); return `<tr><th scope="row"><a href="#book/${book.id}">${escapeHtml(book.name)}</a></th><td>${book.cards.length}장</td><td>${entries.length}회</td><td>${entries.length ? Math.round(entries.filter(item => item.known).length / entries.length * 100) + '%' : '—'}</td><td>${book.cards.length ? 'Lv. ' + average(book) : '—'}</td></tr>`; }).join('')}</tbody></table></div><p class="empty-note">통계 기능 추가 이후의 평가부터 집계합니다. 기존 카드의 암기 레벨은 그대로 유지됩니다.</p></section>`;
+    <section class="panel book-stats"><h2>문제집별 학습 현황</h2><div class="table-scroll"><table><thead><tr><th scope="col">문제집</th><th scope="col">카드</th><th scope="col">평가 횟수</th><th scope="col">알아요 비율</th><th scope="col">평균 레벨</th></tr></thead><tbody>${books.filter(book => !book.deleted).map(book => { const entries = studyHistory.filter(item => item.bookId === book.id); return `<tr><th scope="row"><a href="#book/${book.id}">${escapeHtml(book.name)}</a></th><td>${book.cards.length}장</td><td>${entries.length}회</td><td>${entries.length ? Math.round(entries.filter(item => item.known).length / entries.length * 100) + '%' : '—'}</td><td>${book.cards.length ? 'Lv. ' + average(book) : '—'}</td></tr>`; }).join('')}</tbody></table></div><p class="empty-note">통계 기능 추가 이후의 평가부터 집계합니다. 기존 카드의 암기 레벨은 그대로 유지됩니다.</p></section>`;
 }
 function readSettings(data) {
   const next = { shortcuts: data.has('shortcuts'), alarm: data.has('alarm'), alarmTime: data.get('alarmTime'), timeLimit: Number(data.get('timeLimit')), reveal: data.get('reveal'), unknown: data.get('unknown'), known: data.get('known') };
@@ -72,9 +78,11 @@ function handleFeatureSubmit(event) {
     if (form.id === 'book-form') {
       const name = String(data.get('name') || '').trim();
       if (!name || name.length > 60) throw new Error('문제집 이름을 1~60자로 입력해 주세요.');
+      const category = String(data.get('category') || '');
+      if (category && !bookCategories.includes(category)) throw new Error('문제집 유형을 목록에서 선택해 주세요.');
       const icon = data.get('icon') || '▤';
       if (!bookIcons.some(([value]) => value === icon)) throw new Error('아이콘을 목록에서 선택해 주세요.');
-      const book = { id: `custom-${crypto.randomUUID()}`, name, desc: String(data.get('description') || '').trim().slice(0, 160), icon, color: '#eaf1e2', ink: '#648346', cards: [], custom: true };
+      const book = { id: `custom-${crypto.randomUUID()}`, name, desc: String(data.get('description') || '').trim().slice(0, 160), icon, category, color: '#eaf1e2', ink: '#648346', cards: [], custom: true };
       books.push(book);
       if (!persist()) { books.pop(); throw new Error('저장하지 못했습니다. 브라우저 저장 공간과 설정을 확인해 주세요.'); }
       location.hash = `book/${book.id}`;
@@ -83,6 +91,7 @@ function handleFeatureSubmit(event) {
       settings = readSettings(data);
       if (!persist()) { settings = previous; throw new Error('설정을 저장하지 못했습니다. 브라우저 저장 공간과 설정을 확인해 주세요.'); }
       document.querySelector('#settings-status').textContent = '✓ 설정이 저장되었습니다.';
+      showToast('설정을 저장했습니다.');
     }
   } catch (failure) { error.textContent = failure.message; }
 }
@@ -149,4 +158,30 @@ function startFeatures() {
   setInterval(tickStudyTimer, 250);
   setInterval(checkAlarm, 10000);
   checkAlarm();
+}
+
+// 화면 오른쪽 아래에 잠시 표시되는 알림입니다. 같은 메시지는 중복해서 쌓지 않습니다.
+function showToast(message, kind = 'success') {
+  if (!message) return;
+  let region = document.querySelector('#toast-region');
+  if (!region) {
+    region = document.createElement('div');
+    region.id = 'toast-region';
+    region.className = 'toast-region';
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', 'polite');
+    document.body.append(region);
+  }
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${kind}`;
+  const text = document.createElement('span');
+  text.textContent = message;
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.setAttribute('aria-label', '알림 닫기');
+  close.textContent = '×';
+  close.addEventListener('click', () => toast.remove());
+  toast.append(text, close);
+  region.append(toast);
+  setTimeout(() => toast.remove(), 5000);
 }

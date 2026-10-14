@@ -15,7 +15,7 @@ function setup(fail = false) {
     location: { hash: '#books' }, window: { addEventListener() {}, scrollTo() {}, confirm() { return true; } },
     localStorage: { getItem: key => store[key] || null, setItem(key, value) { if (fail) throw Error('저장 실패'); store[key] = value; } },
     FormData: class { constructor(form) { return form.data; } },
-    crypto: require('node:crypto').webcrypto, setInterval() {}, Date, console, URLSearchParams, URL
+    crypto: require('node:crypto').webcrypto, setInterval() {}, setTimeout() {}, Date, console, URLSearchParams, URL
   };
   vm.createContext(context);
   vm.runInContext(['richtext.js', 'card-stats.js', 'features.js', 'management.js', 'app.js'].map(file => fs.readFileSync(file, 'utf8')).join('\n'), context);
@@ -251,3 +251,43 @@ click(env, 'unarchive-book', 'spring');
 env = setup();
 assert.equal(env.run('books[0].archived'), false);
 console.log('PASS: book archive and restore');
+
+// 문제집 유형(단어·용어·개념)은 선택 사항입니다.
+env = setup();
+submit(env, 'book-form', { name: '유형 없음', description: '' });
+assert.equal(env.run('books[books.length - 1].category'), '');
+submit(env, 'book-form', { name: '용어집', description: '', category: '용어' });
+assert.equal(env.run('books[books.length - 1].category'), '용어');
+env = setup();
+assert.equal(env.run('books[books.length - 1].category'), '용어');
+const bookCount = env.run('books.length');
+submit(env, 'book-form', { name: '잘못', description: '', category: '기타' });
+assert.equal(env.run('books.length'), bookCount);
+console.log('PASS: optional book category');
+
+// 문제집 삭제 → 삭제된 문제집 탭 → 복원 / 완전 삭제
+env = setup();
+const countBefore = env.run('books.length');
+click(env, 'delete-book', 'network');
+assert.equal(env.run('books.find(book => book.id === "network").deleted'), true);
+assert.equal(env.context.location.hash, 'books?tab=deleted');
+env.context.location.hash = '#books'; env.run('render()');
+assert(!env.app.innerHTML.includes('href="#book/network"'));
+env.context.location.hash = '#books?tab=deleted'; env.run('render()');
+assert(env.app.innerHTML.includes('data-action="purge-book"') && env.app.innerHTML.includes('data-action="restore-book"'));
+env = setup();
+assert.equal(env.run('books.find(book => book.id === "network").deleted'), true);
+click(env, 'restore-book', 'network');
+assert.equal(env.run('books.find(book => book.id === "network").deleted'), false);
+click(env, 'delete-book', 'network');
+env.run(`studyHistory.push({ bookId: 'network', cardId: 'x', date: '2026-01-01', known: true })`);
+env.context.window.confirm = () => false;
+click(env, 'purge-book', 'network');
+assert.equal(env.run('books.length'), countBefore);
+env.context.window.confirm = () => true;
+click(env, 'purge-book', 'network');
+assert.equal(env.run('books.length'), countBefore - 1);
+env = setup();
+assert.equal(env.run('books.some(book => book.id === "network")'), false);
+assert.equal(env.run('studyHistory.some(item => item.bookId === "network")'), false);
+console.log('PASS: book delete, restore, permanent delete');

@@ -51,7 +51,7 @@ function renderManage(book) {
       <button class="secondary" type="submit">검색</button><a class="filter-clear" href="#manage/${book.id}">조건 초기화</a>
     </form>
     <p class="management-result" role="status">${state.level ? `Level ${state.level} · ` : ''}${state.query ? `“${escapeHtml(state.query)}” 검색 결과 · ` : ''}${result.total}장${result.total ? ` · ${(result.page - 1) * managementPageSize + 1}–${Math.min(result.page * managementPageSize, result.total)}번째 표시` : ''}</p>
-    <p id="management-status" class="management-status" role="status">${escapeHtml(managementNotice)}</p>
+    <p id="management-status" class="management-status" role="status"></p>
     <p id="management-error" class="form-error" role="alert"></p>
     <div class="question-list">${result.total ? result.entries.map(({ card, index }) => `<article class="panel managed-question">
       <div class="managed-meta"><span>문제 ${index + 1} · ${card.type}</span><span class="pill">Lv. ${card.level}</span></div>
@@ -64,7 +64,6 @@ function renderManage(book) {
         <button class="secondary danger-action" data-action="delete-card" data-book="${book.id}" data-card="${card.id}">삭제</button></div>
     </article>`).join('') : `<section class="panel management-empty"><h2>${book.cards.length ? '조건에 맞는 문제가 없어요.' : '아직 등록된 문제가 없어요.'}</h2><p>${book.cards.length ? '검색어 또는 암기 레벨을 바꾸거나 조건을 초기화해 보세요.' : '위의 문제 만들기에서 첫 질문과 정답을 추가해 보세요.'}</p></section>`}</div>
     ${result.total ? `<nav class="pagination" aria-label="문제 목록 페이지">${result.page > 1 ? pageLink(result.page - 1, '← 이전') : '<button class="secondary" disabled>← 이전</button>'}<span>${result.page} / ${result.totalPages} 페이지</span>${result.page < result.totalPages ? pageLink(result.page + 1, '다음 →') : '<button class="secondary" disabled>다음 →</button>'}</nav>` : ''}`;
-  managementNotice = '';
 }
 
 function renderEdit(book, card, fromStudy) {
@@ -146,6 +145,7 @@ function renderEditBook(book) {
     <form id="edit-book-form" class="panel create-form" data-book="${book.id}">
       <div class="form-field"><label for="edit-book-name">문제집 제목 <span>필수</span></label><input id="edit-book-name" name="name" maxlength="60" required value="${escapeHtml(book.name)}"></div>
       <div class="form-field"><label for="edit-book-desc">한 줄 소개 <span class="optional">선택</span></label><textarea id="edit-book-desc" name="description" maxlength="160" rows="3">${escapeHtml(book.desc)}</textarea></div>
+      ${categoryPicker(book.category || '')}
       ${iconPicker(book.icon)}
       <p class="field-help">등록된 문제와 암기 레벨, 학습 기록은 그대로 유지됩니다.</p><p id="form-error" class="form-error" role="alert"></p>
       <div class="form-actions"><a class="secondary" href="#book/${book.id}">취소</a><button type="submit" class="primary">문제집 수정 저장</button></div>
@@ -156,11 +156,13 @@ function saveBookDetails(book, data) {
   const name = String(data.get('name') || '').trim();
   const desc = String(data.get('description') || '').trim();
   const icon = data.get('icon') || book.icon;
+  const category = String(data.get('category') || '');
+  if (category && !bookCategories.includes(category)) throw new Error('문제집 유형을 목록에서 선택해 주세요.');
   if (!bookIcons.some(([value]) => value === icon)) throw new Error('아이콘을 목록에서 선택해 주세요.');
   if (!name || name.length > 60) throw new Error('문제집 제목은 1~60자로 입력해 주세요.');
   if (desc.length > 160) throw new Error('한 줄 소개는 160자 이하로 입력해 주세요.');
-  const previous = { name: book.name, desc: book.desc, icon: book.icon };
-  Object.assign(book, { name, desc, icon });
+  const previous = { name: book.name, desc: book.desc, icon: book.icon, category: book.category || '' };
+  Object.assign(book, { name, desc, icon, category });
   if (!persist()) {
     Object.assign(book, previous);
     throw new Error('문제집을 저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해 주세요.');
@@ -189,6 +191,32 @@ function handleManagementClick(event) {
     if (archiving && session?.book === target) session = null;
     managementNotice = archiving ? `'${target.name}' 문제집을 보관했습니다. 보관한 문제집은 목록 아래에서 복원할 수 있습니다.` : `'${target.name}' 문제집을 보관 해제했습니다.`;
     if (archiving) location.hash = 'books'; else render();
+    return;
+  }
+  if (button && ['delete-book', 'restore-book', 'purge-book'].includes(button.dataset.action)) {
+    const index = books.findIndex(item => item.id === button.dataset.book);
+    if (index < 0) return;
+    const target = books[index];
+    const action = button.dataset.action;
+    if (action === 'delete-book' && !window.confirm(`'${target.name}' 문제집을 삭제할까요? 삭제된 문제집 탭에서 복원하거나 완전히 삭제할 수 있습니다.`)) return;
+    if (action === 'purge-book' && !window.confirm(`'${target.name}' 문제집을 완전히 삭제할까요? 문제와 학습 기록이 모두 사라지며 복구할 수 없습니다.`)) return;
+    const previous = { deleted: target.deleted, history: studyHistory, purged: purgedBookIds };
+    if (action === 'purge-book') {
+      books.splice(index, 1);
+      studyHistory = studyHistory.filter(item => item.bookId !== target.id);
+      if (!target.custom && !purgedBookIds.includes(target.id)) purgedBookIds = [...purgedBookIds, target.id];
+    } else target.deleted = action === 'delete-book';
+    if (!persist()) {
+      if (action === 'purge-book') books.splice(index, 0, target);
+      else target.deleted = previous.deleted;
+      studyHistory = previous.history;
+      purgedBookIds = previous.purged;
+      app.insertAdjacentHTML('afterbegin', '<p class="form-error" role="alert">변경 내용을 저장하지 못했습니다. 브라우저 저장 공간과 설정을 확인해 주세요.</p>');
+      return;
+    }
+    if (action !== 'restore-book' && session?.book === target) session = null;
+    managementNotice = action === 'delete-book' ? `'${target.name}' 문제집을 삭제했습니다. 여기에서 복원하거나 완전히 삭제할 수 있습니다.` : action === 'restore-book' ? `'${target.name}' 문제집을 복원했습니다.` : `'${target.name}' 문제집을 완전히 삭제했습니다.`;
+    if (action === 'delete-book') location.hash = 'books?tab=deleted'; else { render(); app.focus(); }
     return;
   }
   if (!button || !['reset-card', 'delete-card'].includes(button.dataset.action)) return;
