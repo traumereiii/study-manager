@@ -28,7 +28,7 @@ function featureData() {
   return { settings, history: studyHistory, alarmLastDate, books: books.filter(book => book.custom).map(({ id, name, desc }) => ({ id, name, desc })) };
 }
 function renderNewBook() {
-  app.innerHTML = `<div class="create-shell"><a href="#books" class="back">← 나의 문제집</a><div class="eyebrow">A NEW CHAPTER</div><h1>문제집 만들기</h1><p class="subtitle">배우고 싶은 주제를 담을 새로운 공간을 만들어 보세요.</p><form id="book-form" class="panel create-form"><div class="form-field"><label for="book-name">문제집 이름 <span>필수</span></label><input id="book-name" name="name" maxlength="60" required placeholder="예: 정보처리기사 필기"></div><div class="form-field"><label for="book-desc">한 줄 소개 <span class="optional">선택</span></label><textarea id="book-desc" name="description" maxlength="160" rows="3" placeholder="이 문제집에서 어떤 내용을 공부할까요?"></textarea></div><p class="field-help">빈 문제집을 만든 뒤, 원하는 문제를 직접 추가할 수 있어요.</p><p id="feature-error" class="form-error" role="alert"></p><div class="form-actions"><a class="secondary" href="#books">취소</a><button class="primary" type="submit">문제집 만들기 ＋</button></div></form></div>`;
+  app.innerHTML = `<div class="create-shell"><a href="#books" class="back">← 나의 문제집</a><div class="eyebrow">A NEW CHAPTER</div><h1>문제집 만들기</h1><p class="subtitle">배우고 싶은 주제를 담을 새로운 공간을 만들어 보세요.</p><form id="book-form" class="panel create-form"><div class="form-field"><label for="book-name">문제집 이름 <span>필수</span></label><input id="book-name" name="name" maxlength="60" required placeholder="예: 정보처리기사 필기"></div><div class="form-field"><label for="book-desc">한 줄 소개 <span class="optional">선택</span></label><textarea id="book-desc" name="description" maxlength="160" rows="3" placeholder="이 문제집에서 어떤 내용을 공부할까요?"></textarea></div>${iconPicker('▤')}<p class="field-help">빈 문제집을 만든 뒤, 원하는 문제를 직접 추가할 수 있어요.</p><p id="feature-error" class="form-error" role="alert"></p><div class="form-actions"><a class="secondary" href="#books">취소</a><button class="primary" type="submit">문제집 만들기 ＋</button></div></form></div>`;
 }
 function renderSettings() {
   app.innerHTML = `<div class="create-shell"><div class="eyebrow">MAKE IT YOURS</div><h1>설정</h1><p class="subtitle">내 학습 습관에 맞춰 편안하게 조정해 보세요.</p><form id="settings-form" class="settings-form">
@@ -72,7 +72,9 @@ function handleFeatureSubmit(event) {
     if (form.id === 'book-form') {
       const name = String(data.get('name') || '').trim();
       if (!name || name.length > 60) throw new Error('문제집 이름을 1~60자로 입력해 주세요.');
-      const book = { id: `custom-${crypto.randomUUID()}`, name, desc: String(data.get('description') || '').trim().slice(0, 160), icon: '▤', color: '#eaf1e2', ink: '#648346', cards: [], custom: true };
+      const icon = data.get('icon') || '▤';
+      if (!bookIcons.some(([value]) => value === icon)) throw new Error('아이콘을 목록에서 선택해 주세요.');
+      const book = { id: `custom-${crypto.randomUUID()}`, name, desc: String(data.get('description') || '').trim().slice(0, 160), icon, color: '#eaf1e2', ink: '#648346', cards: [], custom: true };
       books.push(book);
       if (!persist()) { books.pop(); throw new Error('저장하지 못했습니다. 브라우저 저장 공간과 설정을 확인해 주세요.'); }
       location.hash = `book/${book.id}`;
@@ -89,18 +91,24 @@ function updateStudyTools() {
   const token = `${session.startedAt}-${session.index}`;
   if (timerToken !== token) {
     timerToken = token;
-    questionDeadline = settings.timeLimit ? Date.now() + settings.timeLimit * 1000 : null;
+    questionDeadline = session.resumeRemaining != null ? Date.now() + session.resumeRemaining : settings.timeLimit ? Date.now() + settings.timeLimit * 1000 : null;
+    delete session.resumeRemaining;
   }
   const shell = app.querySelector('.study-shell');
   const shortcutText = settings.shortcuts ? `정답 확인 ${keyLabel(settings.reveal)} · 몰라요 ${keyLabel(settings.unknown)} · 알아요 ${keyLabel(settings.known)}` : '단축키 사용 안 함';
+  shell.insertAdjacentHTML('beforeend', `<p class="card-live-time">이 카드 학습 시간 <strong id="card-elapsed">${formatStudyTime(currentCardDuration())}</strong></p>`);
   shell.insertAdjacentHTML('beforeend', `<div class="study-tools"><span>${shortcutText}</span><span id="question-timer" role="timer">${session.timedOut ? '시간 종료 · 정답을 확인해 주세요.' : questionDeadline && !session.revealed ? `남은 시간 ${Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000))}초` : '천천히 학습해 보세요.'}</span></div>`);
 }
 function tickStudyTimer() {
+  if (location.hash.startsWith('#study/') && session) {
+    const elapsed = document.querySelector('#card-elapsed');
+    if (elapsed) elapsed.textContent = formatStudyTime(currentCardDuration());
+  }
   if (!location.hash.startsWith('#study/') || !session || session.revealed || !questionDeadline || session.index >= session.book.cards.length) return;
   const remaining = Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000));
   const timer = document.querySelector('#question-timer');
   if (timer) timer.textContent = `남은 시간 ${remaining}초`;
-  if (!remaining) { session.revealed = true; session.timedOut = true; renderStudy(); }
+  if (!remaining) { session.revealMs = currentCardDuration(); session.revealed = true; session.timedOut = true; renderStudy(); }
 }
 function checkAlarm() {
   if (!settings.alarm || alarmLastDate === todayKey()) return;
