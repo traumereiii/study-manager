@@ -22,8 +22,8 @@ Node.js가 설치되어 있으면 `prototype` 디렉터리에서 `node verify.cj
 
 ## 프런트엔드
 
-`frontend/`는 프로토타입을 Vue 3·TypeScript·Vite로 옮긴 화면이며, 데이터는 모킹 API가 제공합니다. 실행 방법은 [프런트엔드 README](frontend/README.md)를 참고하세요.
+`frontend/`는 프로토타입을 Vue 3·TypeScript·Vite로 옮긴 화면입니다. 로그인 화면이 있고, 모킹 API(`npm run dev`) 또는 백엔드 서버(`npm run dev:server`)로 실행할 수 있습니다. 실행 방법은 [프런트엔드 README](frontend/README.md)를 참고하세요.
 
 ## 서버
 
-`backend/`는 Kotlin·Spring Boot, JDK 25, Gradle 9.8.1, MySQL 8·JPA 기반 서버입니다. 고정 관리자 계정과 JWT 로그인·재발급·로그아웃을 제공합니다. 실행 및 API 사용 방법은 [서버 README](backend/README.md), 요구사항은 [서버 PRD](docs/SERVER_PRD.md)를 참고하세요. 프런트엔드의 HTTP API 연결은 별도 작업입니다.
+`backend/`는 Kotlin·Spring Boot, JDK 25, Gradle 9.8.1, MySQL 8·JPA 기반 서버입니다. 고정 관리자 계정과 JWT 로그인·재발급·로그아웃을 제공합니다. 실행 및 API 사용 방법은 [서버 README](backend/README.md), 요구사항은 [서버 PRD](docs/SERVER_PRD.md)를 참고하세요. 프런트엔드는 `npm run dev:server`로 이 서버와 연동합니다.

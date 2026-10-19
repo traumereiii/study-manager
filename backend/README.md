@@ -2,7 +2,7 @@
 
 Kotlin 2.4.21 · Spring Boot 4.1.1 · JDK 25 · **Gradle 9.8.1** · **MySQL 8.0** · **JPA**.
 
-서버 PRD의 P0 API를 구현한다. 기존 Vue `StudyApi`와 같은 DTO를 반환한다. 프런트엔드는 현재 모킹 API를 사용하므로 로그인 화면과 HTTP 어댑터 연결은 별도 작업이다.
+서버 PRD의 P0 API를 구현한다. 기존 Vue `StudyApi`와 같은 DTO를 반환한다. 프런트엔드(`../frontend`)는 `npm run dev:server`로 이 서버와 연동하며, 로그인 화면과 HTTP 어댑터(`src/api/http`)를 제공한다. 서버는 알 수 없는 JSON 필드를 거부하므로 DTO를 바꾸면 어댑터의 요청 본문도 함께 수정한다.
 
 ## 실행
 
