@@ -1,6 +1,7 @@
 import { DEFAULT_BOOK_COLOR } from '@/constants'
 import type { Book, Card, Level } from '@/types'
 import { todayKey } from '@/utils/date'
+import { newUuid } from '@/utils/uuid'
 import { validateBookInput, validateCardInput, validateSettings } from '@/utils/validation'
 import type { StudyApi } from '../types'
 import { createSeed, type MockDb } from './seed'
@@ -9,7 +10,7 @@ const STORAGE_KEY = 'chagok-vue-mock-v1'
 
 const clone = <T>(value: T): T => structuredClone(value)
 const clampLevel = (value: number): Level => Math.max(1, Math.min(5, value)) as Level
-const newId = (prefix: string): string => `${prefix}-${crypto.randomUUID()}`
+const newId = (prefix: string): string => `${prefix}-${newUuid()}`
 
 function loadDb(storage: Storage | null): MockDb {
   if (storage) {

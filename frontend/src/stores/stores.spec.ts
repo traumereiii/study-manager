@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { setApi } from '@/api'
+import { setApi, setAuthApi } from '@/api'
+import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockApi } from '@/api/mock'
 import { useAppStore } from './app'
+import { useAuthStore } from './auth'
 import { useBookStore } from './books'
 import { useHistoryStore } from './history'
 import { useStudyStore } from './study'
@@ -129,5 +131,40 @@ describe('학습 세션', () => {
     const study = useStudyStore()
     const book = await books.createBook({ name: '빈 문제집', desc: '', icon: '▤', category: '' })
     expect(study.start(book.id)).toBe(false)
+  })
+})
+
+describe('인증 스토어', () => {
+  it('저장된 로그인 정보가 없으면 로그인하지 않은 상태로 시작합니다', async () => {
+    setAuthApi(createMockAuthApi(null))
+    const auth = useAuthStore()
+    await auth.restore()
+    expect(auth.restored).toBe(true)
+    expect(auth.authenticated).toBe(false)
+  })
+
+  it('올바른 계정으로 로그인하고, 틀리면 오류를 던집니다', async () => {
+    setAuthApi(createMockAuthApi(null))
+    const auth = useAuthStore()
+    await expect(auth.login('admin', 'wrong')).rejects.toThrow('아이디 또는 비밀번호')
+    expect(auth.authenticated).toBe(false)
+    await auth.login('admin', 'admin1234')
+    expect(auth.user).toEqual({ username: 'admin' })
+  })
+
+  it('로그아웃하면 불러온 데이터와 학습 세션을 비웁니다', async () => {
+    setAuthApi(createMockAuthApi(null))
+    const auth = useAuthStore()
+    await auth.login('admin', 'admin1234')
+    await useAppStore().bootstrap()
+    useStudyStore().start('spring')
+    expect(useBookStore().activeBooks.length).toBeGreaterThan(0)
+
+    await auth.logout()
+    expect(auth.authenticated).toBe(false)
+    expect(useBookStore().activeBooks).toHaveLength(0)
+    expect(useHistoryStore().entries).toHaveLength(0)
+    expect(useStudyStore().session).toBeNull()
+    expect(useAppStore().loaded).toBe(false)
   })
 })

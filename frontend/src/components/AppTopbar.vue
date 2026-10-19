@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { apiMode } from '@/api'
+import { useAuthStore } from '@/stores/auth'
 import { useBookStore } from '@/stores/books'
 
 const route = useRoute()
+const router = useRouter()
 const books = useBookStore()
+const auth = useAuthStore()
 
 const book = computed(() => {
   const id = route.params.bookId
   return typeof id === 'string' ? books.getBook(id) : undefined
 })
 const title = computed(() => route.meta.title)
+
+async function logout() {
+  await auth.logout()
+  await router.replace({ name: 'login', query: { reason: 'logout' } })
+}
 </script>
 
 <template>
@@ -27,6 +36,10 @@ const title = computed(() => route.meta.title)
         <span aria-hidden="true">/</span> {{ title }}
       </template>
     </nav>
-    <span class="demo-label"><i></i> 미리보기 · 목업 데이터</span>
+    <div class="topbar-actions">
+      <span v-if="apiMode === 'mock'" class="demo-label"><i></i> 미리보기 · 목업 데이터</span>
+      <span v-if="auth.user" class="topbar-user">{{ auth.user.username }}</span>
+      <button class="secondary topbar-logout" type="button" @click="logout">로그아웃</button>
+    </div>
   </header>
 </template>
