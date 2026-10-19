@@ -1,0 +1,6 @@
+.gradle/
+.kotlin/
+build/
+.env
+*.log
+.wrapper-bootstrap/
