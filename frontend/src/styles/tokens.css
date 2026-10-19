@@ -1,0 +1,29 @@
+/* 디자인 토큰 — DESIGN.md 2장 기준 */
+:root {
+  --bg: #f6f7f2;
+  --paper: #fff;
+  --ink: #26382f;
+  --muted: #858d85;
+  --green: #356c4c;
+  --green-strong: #28583c;
+  --line: #e5e9e1;
+  --soft: #eaf0e5;
+  --focus: #86a87c;
+  --error: #a04835;
+
+  --secondary-bg: #f0f2ec;
+  --secondary-ink: #68795f;
+  --notice-bg: #eaf2e2;
+  --notice-line: #cbdcc0;
+  --hero-bg: #e9efdf;
+  --hero-line: #dfe7d5;
+
+  --ink-soft: #596b5e;
+  --field-line: #9fb094;
+
+  font-family: 'Noto Sans KR', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  font-synthesis: none;
+  color-scheme: light;
+}
