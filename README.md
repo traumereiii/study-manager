@@ -19,3 +19,11 @@
 ## 검증
 
 Node.js가 설치되어 있으면 `prototype` 디렉터리에서 `node verify.cjs`로 생성, 수정·삭제, 레벨 초기화, 이전 저장 데이터 호환, 입력 검사, 제한시간, 통계, 알람, 저장 실패 처리를 검증할 수 있습니다. 이 검증은 브라우저 화면을 직접 검사하는 테스트는 아닙니다.
+
+## 프런트엔드
+
+`frontend/`는 프로토타입을 Vue 3·TypeScript·Vite로 옮긴 화면이며, 데이터는 모킹 API가 제공합니다. 실행 방법은 [프런트엔드 README](frontend/README.md)를 참고하세요.
+
+## 서버
+
+`backend/`는 Kotlin·Spring Boot, JDK 25, Gradle 9.8.1, MySQL 8·JPA 기반 서버입니다. 고정 관리자 계정과 JWT 로그인·재발급·로그아웃을 제공합니다. 실행 및 API 사용 방법은 [서버 README](backend/README.md), 요구사항은 [서버 PRD](docs/SERVER_PRD.md)를 참고하세요. 프런트엔드의 HTTP API 연결은 별도 작업입니다.
